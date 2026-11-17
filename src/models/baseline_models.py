@@ -1,8 +1,5 @@
 """
 Baseline Models for Rossmann Store Sales
-Author: Your Name
-Date: October 2025
-Python: 3.13.5
 """
 
 import pandas as pd
@@ -52,33 +49,14 @@ class SeasonalNaiveForecaster:
         predictions : pandas Series
             Predicted sales
         """
-        predictions = []
-        
-        for idx, row in valid_data.iterrows():
-            store = row['Store']
-            date = row['Date']
-            
-            # Find sales from seasonality days ago
-            lag_date = date - pd.Timedelta(days=self.seasonality)
-            
-            # Get historical sales
-            hist = self.train_data[
-                (self.train_data['Store'] == store) & 
-                (self.train_data['Date'] == lag_date)
-            ]
-            
-            if len(hist) > 0:
-                pred = hist['Sales'].values[0]
-            else:
-                # Fallback: use store average
-                store_avg = self.train_data[
-                    self.train_data['Store'] == store
-                ]['Sales'].mean()
-                pred = store_avg
-            
-            predictions.append(pred)
-        
-        return pd.Series(predictions, index=valid_data.index)
+        # Sales from `seasonality` days earlier (vectorised lookup);
+        # fall back to the store's mean over the fitted data
+        lag = valid_data[['Store', 'Date']].copy()
+        lag['Date'] = lag['Date'] - pd.Timedelta(days=self.seasonality)
+        hist = self.train_data[['Store', 'Date', 'Sales']]
+        pred = lag.merge(hist, on=['Store', 'Date'], how='left')['Sales'].to_numpy()
+        store_avg = valid_data['Store'].map(hist.groupby('Store')['Sales'].mean()).to_numpy()
+        return pd.Series(np.where(np.isnan(pred), store_avg, pred), index=valid_data.index)
 
 
 class MovingAverageForecaster:

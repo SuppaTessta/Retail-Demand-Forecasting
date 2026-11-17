@@ -1,13 +1,9 @@
 """
 Feature Engineering Module for Rossmann Store Sales
-Author: Your Name
-Date: October 2025
-Python: 3.13.5
 """
 
 import pandas as pd
 import numpy as np
-from datetime import datetime
 
 def extract_date_features(df, date_col='Date'):
     """
@@ -72,7 +68,7 @@ def create_promo2_feature(df):
     month_map = {
         'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4,
         'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8,
-        'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+        'Sep': 9, 'Sept': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12  # store.csv spells it "Sept"
     }
     
     def is_promo2_active(row):
@@ -132,7 +128,7 @@ def transform_competition_distance(df):
     return df
 
 
-def create_store_features(df):
+def create_store_features(df, cutoff_date=None):
     """
     Create store-level aggregated features
     
@@ -140,6 +136,9 @@ def create_store_features(df):
     -----------
     df : pandas DataFrame
         Dataset with Store and Sales columns
+    cutoff_date : str or Timestamp, optional
+        Only rows with Date < cutoff_date are used to compute the stats
+        (pass the validation start date so validation sales never leak in).
         
     Returns:
     --------
@@ -151,13 +150,10 @@ def create_store_features(df):
     print("🏬 Creating store-level features...")
     
     if 'Sales' in df.columns:
-        # Average sales per store
-        store_avg = df.groupby('Store')['Sales'].mean().to_dict()
-        df['Store_AvgSales'] = df['Store'].map(store_avg)
-        
-        # Sales standard deviation per store
-        store_std = df.groupby('Store')['Sales'].std().to_dict()
-        df['Store_StdSales'] = df['Store'].map(store_std)
+        hist = df if cutoff_date is None else df[df['Date'] < cutoff_date]
+        stats = hist.groupby('Store')['Sales'].agg(['mean', 'std'])
+        df['Store_AvgSales'] = df['Store'].map(stats['mean'])
+        df['Store_StdSales'] = df['Store'].map(stats['std'])
         
         print(f"  ✓ Created 2 store aggregate features")
     else:
@@ -206,8 +202,8 @@ def create_lag_features(df, target_col='Sales', lags=[7, 14, 30]):
 
 def create_rolling_features(df, target_col='Sales', windows=[7, 14, 30]):
     """
-    Create rolling window statistics
-    VERY important for capturing trends!
+    Create rolling window statistics over *previous* rows only
+    (shift(1) so the current day's Sales never enters its own feature)
     
     Parameters:
     -----------
@@ -238,24 +234,24 @@ def create_rolling_features(df, target_col='Sales', windows=[7, 14, 30]):
         # Rolling mean
         df[f'{target_col}_RollingMean_{window}'] = \
             df.groupby('Store')[target_col].transform(
-                lambda x: x.rolling(window=window, min_periods=1).mean()
+                lambda x: x.shift(1).rolling(window=window, min_periods=1).mean()
             )
         
         # Rolling standard deviation
         df[f'{target_col}_RollingStd_{window}'] = \
             df.groupby('Store')[target_col].transform(
-                lambda x: x.rolling(window=window, min_periods=1).std()
+                lambda x: x.shift(1).rolling(window=window, min_periods=1).std()
             )
         
         # Rolling min and max
         df[f'{target_col}_RollingMin_{window}'] = \
             df.groupby('Store')[target_col].transform(
-                lambda x: x.rolling(window=window, min_periods=1).min()
+                lambda x: x.shift(1).rolling(window=window, min_periods=1).min()
             )
         
         df[f'{target_col}_RollingMax_{window}'] = \
             df.groupby('Store')[target_col].transform(
-                lambda x: x.rolling(window=window, min_periods=1).max()
+                lambda x: x.shift(1).rolling(window=window, min_periods=1).max()
             )
     
     print(f"  ✓ Created {len(windows) * 4} rolling features")
@@ -265,8 +261,8 @@ def create_rolling_features(df, target_col='Sales', windows=[7, 14, 30]):
 
 def create_exponential_features(df, target_col='Sales', spans=[7, 14, 30]):
     """
-    Create exponentially weighted moving averages
-    Gives more weight to recent values
+    Create exponentially weighted moving averages of *previous* rows
+    (shift(1) so the current day's Sales never enters its own feature)
     
     Parameters:
     -----------
@@ -296,7 +292,7 @@ def create_exponential_features(df, target_col='Sales', spans=[7, 14, 30]):
     for span in spans:
         df[f'{target_col}_EWM_{span}'] = \
             df.groupby('Store')[target_col].transform(
-                lambda x: x.ewm(span=span, adjust=False).mean()
+                lambda x: x.shift(1).ewm(span=span, adjust=False).mean()
             )
     
     print(f"  ✓ Created {len(spans)} EWM features")
@@ -304,7 +300,7 @@ def create_exponential_features(df, target_col='Sales', spans=[7, 14, 30]):
     return df
 
 
-def feature_engineering_pipeline(df, is_train=True):
+def feature_engineering_pipeline(df, is_train=True, stats_cutoff=None):
     """
     Complete feature engineering pipeline
     
@@ -314,6 +310,8 @@ def feature_engineering_pipeline(df, is_train=True):
         Preprocessed dataset
     is_train : bool
         Whether this is training data (has Sales column)
+    stats_cutoff : str or Timestamp, optional
+        Validation start date; store-level stats use only earlier rows
         
     Returns:
     --------
@@ -337,7 +335,7 @@ def feature_engineering_pipeline(df, is_train=True):
     df = transform_competition_distance(df)
     
     # Create store-level features
-    df = create_store_features(df)
+    df = create_store_features(df, cutoff_date=stats_cutoff)
     
     # Create lag and rolling features (only if Sales exists)
     if is_train and 'Sales' in df.columns:
@@ -378,7 +376,7 @@ if __name__ == "__main__":
     print(f"  ✓ Test loaded: {test.shape}")
     
     # Engineer features
-    train_fe = feature_engineering_pipeline(train, is_train=True)
+    train_fe = feature_engineering_pipeline(train, is_train=True, stats_cutoff='2015-06-16')
     test_fe = feature_engineering_pipeline(test, is_train=False)
     
     # Save feature-engineered data

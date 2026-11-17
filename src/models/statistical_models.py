@@ -1,12 +1,8 @@
 """
 Statistical Time Series Models for Rossmann Store Sales
-Author: Your Name
-Date: October 2025
-Python: 3.13.5
 """
 
 import pandas as pd
-import numpy as np
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import warnings
 warnings.filterwarnings('ignore')

@@ -1,5 +1,6 @@
-This directory stores trained model artifacts (e.g., LightGBM models).
+This directory stores trained model artifacts. It is ignored by Git (except this file).
 
-By default, this folder is ignored by Git to avoid committing large binary files.
+`python -m src.evaluate` writes:
 
-Artifacts will be created here when you train models (e.g., models/lightgbm_best_model.pkl).
+- `lightgbm_horizon_model.pkl`: 6-week-horizon model (no sales-history features), used by the Streamlit app
+- `lightgbm_best_model.pkl`: 1-day-ahead model (needs the previous days' actual sales)

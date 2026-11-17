@@ -1,13 +1,8 @@
 """
 Data Preprocessing Module for Rossmann Store Sales
-Author: Your Name
-Date: October 2025
-Python: 3.13.5
 """
 
 import pandas as pd
-import numpy as np
-from datetime import datetime
 
 def load_data(train_path='data/raw/train.csv', 
               test_path='data/raw/test.csv',
@@ -29,8 +24,8 @@ def load_data(train_path='data/raw/train.csv',
     train, test, store : pandas DataFrames
     """
     print("📂 Loading datasets...")
-    train = pd.read_csv(train_path, parse_dates=['Date'])
-    test = pd.read_csv(test_path, parse_dates=['Date'])
+    train = pd.read_csv(train_path, parse_dates=['Date'], dtype={'StateHoliday': str})
+    test = pd.read_csv(test_path, parse_dates=['Date'], dtype={'StateHoliday': str})
     store = pd.read_csv(store_path)
     
     print(f"  ✓ Train: {train.shape[0]:,} rows × {train.shape[1]} columns")
@@ -63,35 +58,35 @@ def handle_missing_values(df):
     # CompetitionDistance: If no competitor, set large distance
     if 'CompetitionDistance' in df.columns:
         missing_comp_dist = df['CompetitionDistance'].isnull().sum()
-        df['CompetitionDistance'].fillna(100000, inplace=True)
+        df['CompetitionDistance'] = df['CompetitionDistance'].fillna(100000)
         print(f"  ✓ Filled {missing_comp_dist} missing CompetitionDistance values")
     
     # CompetitionOpenSince: If no competitor, set to year 1900
     if 'CompetitionOpenSinceMonth' in df.columns:
         missing_comp_month = df['CompetitionOpenSinceMonth'].isnull().sum()
-        df['CompetitionOpenSinceMonth'].fillna(0, inplace=True)
+        df['CompetitionOpenSinceMonth'] = df['CompetitionOpenSinceMonth'].fillna(0)
         print(f"  ✓ Filled {missing_comp_month} missing CompetitionOpenSinceMonth values")
         
     if 'CompetitionOpenSinceYear' in df.columns:
         missing_comp_year = df['CompetitionOpenSinceYear'].isnull().sum()
-        df['CompetitionOpenSinceYear'].fillna(1900, inplace=True)
+        df['CompetitionOpenSinceYear'] = df['CompetitionOpenSinceYear'].fillna(1900)
         print(f"  ✓ Filled {missing_comp_year} missing CompetitionOpenSinceYear values")
     
     # Promo2Since: If not in promo2, set to 0
     if 'Promo2SinceWeek' in df.columns:
         missing_promo_week = df['Promo2SinceWeek'].isnull().sum()
-        df['Promo2SinceWeek'].fillna(0, inplace=True)
+        df['Promo2SinceWeek'] = df['Promo2SinceWeek'].fillna(0)
         print(f"  ✓ Filled {missing_promo_week} missing Promo2SinceWeek values")
         
     if 'Promo2SinceYear' in df.columns:
         missing_promo_year = df['Promo2SinceYear'].isnull().sum()
-        df['Promo2SinceYear'].fillna(1900, inplace=True)
+        df['Promo2SinceYear'] = df['Promo2SinceYear'].fillna(1900)
         print(f"  ✓ Filled {missing_promo_year} missing Promo2SinceYear values")
     
     # PromoInterval: Fill with 'None'
     if 'PromoInterval' in df.columns:
         missing_promo_interval = df['PromoInterval'].isnull().sum()
-        df['PromoInterval'].fillna('None', inplace=True)
+        df['PromoInterval'] = df['PromoInterval'].fillna('None')
         print(f"  ✓ Filled {missing_promo_interval} missing PromoInterval values")
     
     final_missing = df.isnull().sum().sum()

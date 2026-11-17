@@ -1,14 +1,11 @@
 """
 Machine Learning Models for Rossmann Store Sales
-Author: Your Name
-Date: October 2025
-Python: 3.13.5
 """
 
 import pandas as pd
-import numpy as np
 import lightgbm as lgb
 import pickle
+from pathlib import Path
 
 class LightGBMForecaster:
     """
@@ -52,7 +49,8 @@ class LightGBMForecaster:
         train_data : pandas DataFrame
             Training data
         valid_data : pandas DataFrame
-            Validation data (optional)
+            Early-stopping data (optional). Take it from the end of the
+            training period; never pass the set you report metrics on.
         categorical_features : list
             List of categorical feature names
         num_iterations : int
@@ -84,13 +82,17 @@ class LightGBMForecaster:
         if valid_data is not None:
             valid_data_processed = valid_data.copy()
         
-        # Convert categorical object columns to numeric codes
+        # Convert categorical object columns to numeric codes, using the
+        # training categories everywhere so codes mean the same thing
+        self.categories = {}
         for col in self.feature_cols:
             if train_data_processed[col].dtype == 'object':
                 print(f"  Converting {col} from object to category codes")
-                train_data_processed[col] = train_data_processed[col].astype('category').cat.codes
+                cats = train_data_processed[col].astype(str).astype('category').cat.categories
+                self.categories[col] = cats
+                train_data_processed[col] = pd.Categorical(train_data_processed[col].astype(str), categories=cats).codes
                 if valid_data is not None:
-                    valid_data_processed[col] = valid_data_processed[col].astype('category').cat.codes
+                    valid_data_processed[col] = pd.Categorical(valid_data_processed[col].astype(str), categories=cats).codes
         
         # Prepare data
         X_train = train_data_processed[self.feature_cols]
@@ -164,9 +166,8 @@ class LightGBMForecaster:
         
         # **FIX: Convert object dtypes to category codes**
         data_processed = data.copy()
-        for col in self.feature_cols:
-            if data_processed[col].dtype == 'object':
-                data_processed[col] = data_processed[col].astype('category').cat.codes
+        for col, cats in getattr(self, 'categories', {}).items():
+            data_processed[col] = pd.Categorical(data_processed[col].astype(str), categories=cats).codes
     
         X = data_processed[self.feature_cols]
         predictions = self.model.predict(X, num_iteration=self.model.best_iteration)
@@ -210,16 +211,7 @@ class LightGBMForecaster:
                 'feature_cols': self.feature_cols,
                 'params': self.params
             }, f)
-        print(f"✓ Model saved to {filepath}")
-    
-    def load_model(self, filepath):
-        """Load model from file"""
-        with open(filepath, 'rb') as f:
-            data = pickle.load(f)
-            self.model = data['model']
-            self.feature_cols = data['feature_cols']
-            self.params = data['params']
-        print(f"✓ Model loaded from {filepath}")
+        print(f"✓ Model saved to models/{Path(filepath).name}")
 
 
 if __name__ == "__main__":
@@ -231,18 +223,22 @@ if __name__ == "__main__":
     # Load data
     data = pd.read_csv('data/processed/train_features.csv', parse_dates=['Date'])
     
-    # Split
-    split_date = '2015-06-16'
-    train = data[data['Date'] < split_date].reset_index(drop=True)
+    # Split: early stopping uses the last 6 weeks of the training period,
+    # the validation period (2015-06-16 onward) is only predicted
+    split_date = pd.Timestamp('2015-06-16')
+    es_date = split_date - pd.Timedelta(weeks=6)
+    fit = data[data['Date'] < es_date].reset_index(drop=True)
+    early = data[(data['Date'] >= es_date) & (data['Date'] < split_date)].reset_index(drop=True)
     valid = data[data['Date'] >= split_date].reset_index(drop=True)
     
     # Sample for quick test (use full data in production)
-    train_sample = train.sample(n=min(100000, len(train)), random_state=42)
+    train_sample = fit.sample(n=min(100000, len(fit)), random_state=42)
+    es_sample = early.sample(n=min(10000, len(early)), random_state=42)
     valid_sample = valid.sample(n=min(10000, len(valid)), random_state=42)
     
     # Train model
     model = LightGBMForecaster()
-    model.fit(train_sample, valid_sample, num_iterations=100)
+    model.fit(train_sample, es_sample, num_iterations=100)
     
     # Make predictions
     preds = model.predict(valid_sample)

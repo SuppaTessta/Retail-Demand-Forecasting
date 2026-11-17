@@ -1,0 +1,147 @@
+{
+  "dataset": "Kaggle Rossmann Store Sales train.csv (open days, Sales > 0)",
+  "splits": {
+    "fit": {
+      "rows": 728680,
+      "from": "2013-01-31",
+      "to": "2015-05-04"
+    },
+    "early_stopping": {
+      "rows": 37470,
+      "from": "2015-05-05",
+      "to": "2015-06-15"
+    },
+    "validation": {
+      "rows": 44738,
+      "from": "2015-06-16",
+      "to": "2015-07-31",
+      "stores": 1115
+    }
+  },
+  "metric_notes": "RMSPE = Kaggle metric (zero-sales days excluded); RMSE/MAE in sales units; MAPE in %.",
+  "lightgbm_one_day_ahead": {
+    "metrics": {
+      "MAE": 593.7931,
+      "RMSE": 845.4806,
+      "RMSPE": 0.1273,
+      "MAPE": 8.9152
+    },
+    "best_iteration": 560,
+    "n_features": 49,
+    "train_seconds": 112.6,
+    "top10_features_gain": [
+      {
+        "feature": "Sales_EWM_7",
+        "gain_share": 0.3388
+      },
+      {
+        "feature": "Sales_RollingMean_14",
+        "gain_share": 0.1728
+      },
+      {
+        "feature": "Promo",
+        "gain_share": 0.1268
+      },
+      {
+        "feature": "DayOfWeek",
+        "gain_share": 0.0662
+      },
+      {
+        "feature": "Store_AvgSales",
+        "gain_share": 0.0547
+      },
+      {
+        "feature": "Sales_EWM_14",
+        "gain_share": 0.0458
+      },
+      {
+        "feature": "Store",
+        "gain_share": 0.0411
+      },
+      {
+        "feature": "Sales_EWM_30",
+        "gain_share": 0.0213
+      },
+      {
+        "feature": "Day",
+        "gain_share": 0.0207
+      },
+      {
+        "feature": "DayOfYear",
+        "gain_share": 0.0186
+      }
+    ]
+  },
+  "lightgbm_six_week_horizon": {
+    "metrics": {
+      "MAE": 648.8122,
+      "RMSE": 939.3391,
+      "RMSPE": 0.1389,
+      "MAPE": 9.7814
+    },
+    "best_iteration": 826,
+    "n_features": 31,
+    "train_seconds": 87.2,
+    "top10_features_gain": [
+      {
+        "feature": "Store_AvgSales",
+        "gain_share": 0.4355
+      },
+      {
+        "feature": "Store",
+        "gain_share": 0.1988
+      },
+      {
+        "feature": "Promo",
+        "gain_share": 0.1513
+      },
+      {
+        "feature": "Store_StdSales",
+        "gain_share": 0.0584
+      },
+      {
+        "feature": "DayOfWeek",
+        "gain_share": 0.0465
+      },
+      {
+        "feature": "DayOfYear",
+        "gain_share": 0.0322
+      },
+      {
+        "feature": "Day",
+        "gain_share": 0.0284
+      },
+      {
+        "feature": "WeekOfYear",
+        "gain_share": 0.019
+      },
+      {
+        "feature": "IsWeekend",
+        "gain_share": 0.0127
+      },
+      {
+        "feature": "Year",
+        "gain_share": 0.0037
+      }
+    ]
+  },
+  "baseline_seasonal_naive_lag7": {
+    "description": "Actual sales 7 days earlier (needs last week actuals, like the 1-day-ahead model)",
+    "metrics": {
+      "MAE": 2159.9591,
+      "RMSE": 2763.0013,
+      "RMSPE": 0.3974,
+      "MAPE": 31.2523
+    }
+  },
+  "baseline_seasonal_naive_last_train_week": {
+    "description": "Same weekday from the last training week, repeated for all 46 days (6-week horizon)",
+    "metrics": {
+      "MAE": 1481.1467,
+      "RMSE": 2110.5872,
+      "RMSPE": 0.2901,
+      "MAPE": 20.7048
+    }
+  },
+  "total_runtime_seconds": 320.3
+}
